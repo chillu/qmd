@@ -1410,7 +1410,140 @@ export async function generateEmbeddings(
   const totalDocs = docsToEmbed.length;
   const startTime = Date.now();
 
-  // Use store's LlamaCpp or global singleton, wrapped in a session
+  // When using OpenAI, bypass the LLM session wrapper and use OpenAI directly
+  if (isUsingOpenAI()) {
+    const llm = getDefaultEmbeddingLLM();
+    let chunksEmbedded = 0;
+    let errors = 0;
+    let bytesProcessed = 0;
+    let totalChunks = 0;
+    let vectorTableInitialized = false;
+    const BATCH_SIZE = 32;
+    const batches = buildEmbeddingBatches(docsToEmbed, maxDocsPerBatch, maxBatchBytes);
+
+    for (const batchMeta of batches) {
+      const batchDocs = getEmbeddingDocsForBatch(db, batchMeta);
+      const batchChunks: ChunkItem[] = [];
+      const batchBytes = batchMeta.reduce((sum, doc) => sum + Math.max(0, doc.bytes), 0);
+
+      for (const doc of batchDocs) {
+        if (!doc.body.trim()) continue;
+
+        const title = extractTitle(doc.body, doc.path);
+        const chunks = await chunkDocumentByTokens(
+          doc.body,
+          undefined, undefined, undefined,
+          doc.path,
+          options?.chunkStrategy,
+          undefined, // No signal needed for OpenAI
+        );
+
+        for (let seq = 0; seq < chunks.length; seq++) {
+          batchChunks.push({
+            hash: doc.hash,
+            title,
+            text: chunks[seq]!.text,
+            seq,
+            pos: chunks[seq]!.pos,
+            tokens: chunks[seq]!.tokens,
+            bytes: encoder.encode(chunks[seq]!.text).length,
+          });
+        }
+      }
+
+      totalChunks += batchChunks.length;
+
+      if (batchChunks.length === 0) {
+        bytesProcessed += batchBytes;
+        options?.onProgress?.({ chunksEmbedded, totalChunks, bytesProcessed, totalBytes, errors });
+        continue;
+      }
+
+      if (!vectorTableInitialized) {
+        const firstChunk = batchChunks[0]!;
+        const firstText = formatDocForEmbedding(firstChunk.text, firstChunk.title);
+        const firstResult = await llm.embed(firstText);
+        if (!firstResult) {
+          throw new Error("Failed to get embedding dimensions from first chunk");
+        }
+        store.ensureVecTable(firstResult.embedding.length);
+        vectorTableInitialized = true;
+      }
+
+      const totalBatchChunkBytes = batchChunks.reduce((sum, chunk) => sum + chunk.bytes, 0);
+      let batchChunkBytesProcessed = 0;
+
+      for (let batchStart = 0; batchStart < batchChunks.length; batchStart += BATCH_SIZE) {
+        // Abort early if error rate is too high (>80% of processed chunks failed)
+        const processed = chunksEmbedded + errors;
+        if (processed >= BATCH_SIZE && errors > processed * 0.8) {
+          const remaining = batchChunks.length - batchStart;
+          errors += remaining;
+          console.warn(`⚠ Error rate too high (${errors}/${processed}) — aborting embedding`);
+          break;
+        }
+
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, batchChunks.length);
+        const chunkBatch = batchChunks.slice(batchStart, batchEnd);
+        const texts = chunkBatch.map(chunk => formatDocForEmbedding(chunk.text, chunk.title));
+
+        try {
+          const embeddings = await llm.embedBatch(texts);
+          for (let i = 0; i < chunkBatch.length; i++) {
+            const chunk = chunkBatch[i]!;
+            const embedding = embeddings[i];
+            if (embedding) {
+              insertEmbedding(db, chunk.hash, chunk.seq, chunk.pos, new Float32Array(embedding.embedding), model, now);
+              chunksEmbedded++;
+            } else {
+              errors++;
+            }
+            batchChunkBytesProcessed += chunk.bytes;
+          }
+        } catch {
+          // Batch failed — try individual embeddings as fallback
+          for (const chunk of chunkBatch) {
+            try {
+              const text = formatDocForEmbedding(chunk.text, chunk.title);
+              const result = await llm.embed(text);
+              if (result) {
+                insertEmbedding(db, chunk.hash, chunk.seq, chunk.pos, new Float32Array(result.embedding), model, now);
+                chunksEmbedded++;
+              } else {
+                errors++;
+              }
+            } catch {
+              errors++;
+            }
+            batchChunkBytesProcessed += chunk.bytes;
+          }
+        }
+
+        const proportionalBytes = totalBatchChunkBytes === 0
+          ? batchBytes
+          : Math.min(batchBytes, Math.round((batchChunkBytesProcessed / totalBatchChunkBytes) * batchBytes));
+        options?.onProgress?.({
+          chunksEmbedded,
+          totalChunks,
+          bytesProcessed: bytesProcessed + proportionalBytes,
+          totalBytes,
+          errors,
+        });
+      }
+
+      bytesProcessed += batchBytes;
+      options?.onProgress?.({ chunksEmbedded, totalChunks, bytesProcessed, totalBytes, errors });
+    }
+
+    return {
+      docsProcessed: totalDocs,
+      chunksEmbedded,
+      errors,
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  // Use store's LlamaCpp or global singleton, wrapped in a session (original logic for local models)
   const llm = getLlm(store);
 
   // Create a session manager for this llm instance
