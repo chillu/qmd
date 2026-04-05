@@ -15,7 +15,10 @@ services:
     env_file:
       - .env
     ports:
-      - "8181:8181"
+      # Bind ONLY to localhost for Tailscale serve security
+      # Services are NOT exposed on local network - only via Tailscale
+      - "127.0.0.1:8181:8181"
+    restart: unless-stopped
     working_dir: /vault
     stdin_open: true
     tty: true
@@ -34,7 +37,10 @@ services:
     env_file:
       - .env
     ports:
-      - "8182:8182"
+      # Bind ONLY to localhost for Tailscale serve security
+      # Services are NOT exposed on local network - only via Tailscale
+      - "127.0.0.1:8182:8182"
+    restart: unless-stopped
     stdin_open: true
     tty: true
 

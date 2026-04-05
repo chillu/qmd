@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     libsqlite3-dev \
     netcat-openbsd \
     cron \
-    flock \
+    util-linux \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -22,6 +22,9 @@ WORKDIR /app
 
 # Clone the chillu/qmd fork with OpenAI embeddings support
 RUN git clone --branch feat/openai-embeddings-clean --depth 1 https://github.com/chillu/qmd.git .
+
+# Patch: Fix MCP server to bind to 0.0.0.0 instead of localhost for Docker
+RUN sed -i 's/"localhost"/"0.0.0.0"/g' /app/src/mcp/server.ts
 
 # Install dependencies using Bun
 RUN bun install
