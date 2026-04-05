@@ -30,6 +30,10 @@ RUN bun run build
 # Create cache directory
 RUN mkdir -p /root/.cache/qmd
 
+# Copy entrypoint script
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Set environment variables
 ENV NODE_ENV=production
 ENV QMD_OPENAI=1
@@ -39,5 +43,6 @@ ENV PATH="/app/bin:$PATH"
 # Expose MCP server port
 EXPOSE 8181
 
-# Start QMD MCP server
-CMD ["qmd", "mcp", "--http", "--port", "8181"]
+# Use entrypoint to initialize collections before starting MCP server
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD []

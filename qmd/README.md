@@ -26,6 +26,19 @@ docker exec -it qmd-server bash
 qmd query "time management techniques"
 ```
 
+## Auto-Initialized Collections
+
+On first start, the container automatically creates collections for:
+
+| Collection | Path | Description |
+|------------|------|-------------|
+| `books` | `/vault/books` | Book notes and highlights |
+| `notes` | `/vault/notes` | General vault notes |
+
+Collections are only created if the directories exist. The index is persisted across container restarts via the `qmd-cache` Docker volume.
+
+**To customize**: Edit `entrypoint.sh` and rebuild, or add collections manually via CLI.
+
 ## MCP Server Usage
 
 The MCP server runs on `http://localhost:8181/mcp`
