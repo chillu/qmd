@@ -45,6 +45,7 @@ Secure Docker Compose setup running two independent MCP servers for your Obsidia
 |---------|-----------|----------------|-------------|
 | [QMD](./qmd/) | 8181 | `/qmd` | Semantic search with OpenAI embeddings |
 | [MCPVault](./mcpvault/) | 8182 | `/mcpvault` | Direct vault access for AI agents |
+| [MCP Connector](./mcp-connector/) | 50880 | `/mcp-connector` | **Docker-isolated** TypingMind bridge |
 
 ## Quick Start
 
@@ -96,6 +97,47 @@ Or with HTTPS (if you have a Tailscale DNS name):
 ```
 https://<YOUR_HOSTNAME>/qmd/mcp
 ```
+
+#### TypingMind with Docker-Isolated MCP Connector (Recommended)
+
+For better security, use the **Docker-isolated** MCP Connector that keeps TypingMind's code in a container:
+
+1. **Start all services** (includes MCP Connector):
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Get your Auth Token**:
+   ```bash
+   docker logs typingmind-mcp-connector | grep "Auth Token:"
+   ```
+   Save this token!
+
+3. **Configure Tailscale**:
+   ```bash
+   ./tailscale/setup-serve.sh
+   ```
+
+4. **In TypingMind MCP settings**:
+   - **Connector URL**: `https://<YOUR_HOSTNAME>/mcp-connector`
+   - **Auth Token**: (from step 2)
+   - **Edit Servers** and add:
+   ```json
+   {
+     "mcpServers": {
+       "qmd": {
+         "url": "http://qmd:8181/mcp"
+       },
+       "mcpvault": {
+         "url": "http://mcpvault:8182/mcp"
+       }
+     }
+   }
+   ```
+
+**Why Docker isolation?** The MCP Connector runs TypingMind's code in a sandboxed container, not directly on your Mac. It can only access QMD and MCPVault via internal Docker networking - not your host filesystem or other processes.
+
+See [mcp-connector/README.md](./mcp-connector/) for full details.
 
 ### ChatGPT Desktop App
 

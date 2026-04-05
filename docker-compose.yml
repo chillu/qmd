@@ -22,6 +22,9 @@ services:
     working_dir: /vault
     stdin_open: true
     tty: true
+    # Internal network for MCP connector communication
+    networks:
+      - mcp-network
 
   mcpvault:
     build:
@@ -43,6 +46,44 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    # Internal network for MCP connector communication
+    networks:
+      - mcp-network
+
+  # TypingMind MCP Connector - Isolated bridge to your MCP servers
+  # This runs the TypingMind connector code in Docker isolation
+  # so it never runs directly on your host machine
+  mcp-connector:
+    build:
+      context: ./mcp-connector
+      dockerfile: Dockerfile
+    container_name: typingmind-mcp-connector
+    environment:
+      # Optional: Set your own auth token here, or one will be generated
+      # MCP_AUTH_TOKEN: your-secure-token-here
+      - PORT=50880
+    ports:
+      # Expose MCP connector on localhost only
+      # Will be exposed via Tailscale for secure remote access
+      - "127.0.0.1:50880:50880"
+    restart: unless-stopped
+    depends_on:
+      - qmd
+      - mcpvault
+    networks:
+      - mcp-network
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50880/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  mcp-network:
+    driver: bridge
+    internal: false
 
 volumes:
   qmd-cache:

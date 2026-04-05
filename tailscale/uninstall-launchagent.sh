@@ -3,6 +3,16 @@
 
 set -e
 
+# Determine Tailscale binary path
+if [ -f "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]; then
+    TAILSCALE="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+elif command -v tailscale &> /dev/null; then
+    TAILSCALE="tailscale"
+else
+    echo "Warning: Tailscale not found, using 'tailscale' as default"
+    TAILSCALE="tailscale"
+fi
+
 PLIST_NAME="com.tailscale.serve.pkm.plist"
 PLIST_PATH="$HOME/Library/LaunchAgents/$PLIST_NAME"
 
@@ -26,7 +36,7 @@ fi
 # Stop tailscale serve
 echo ""
 echo "Stopping tailscale serve..."
-tailscale serve --https=0 --http=0 2>/dev/null || true
+$TAILSCALE serve --https=0 --http=0 2>/dev/null || true
 echo "✓ Stopped tailscale serve"
 
 echo ""

@@ -9,7 +9,7 @@
     <array>
         <string>/bin/sh</string>
         <string>-c</string>
-        <string>sleep 30 &amp;&amp; /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --set-path=/qmd 127.0.0.1:8181 &amp;&amp; /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --set-path=/mcpvault 127.0.0.1:8182</string>
+        <string>sleep 30 &amp;&amp; /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --set-path=/qmd 127.0.0.1:8181 &amp;&amp; /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --set-path=/mcpvault 127.0.0.1:8182 &amp;&amp; /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --set-path=/mcp-connector 127.0.0.1:50880</string>
     </array>
     
     <key>RunAtLoad</key>
