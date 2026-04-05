@@ -135,6 +135,10 @@ For better security, use the **Docker-isolated** MCP Connector that keeps Typing
    }
    ```
 
+   **For iOS/iPhone users:** If you can't resolve the hostname, use the Tailscale IP directly:
+   - **Connector URL**: `http://100.x.x.x:50880` (use HTTP, not HTTPS)
+   - See [iOS Troubleshooting](./docs/ios-troubleshooting.md) for details
+
 **Why Docker isolation?** The MCP Connector runs TypingMind's code in a sandboxed container, not directly on your Mac. It can only access QMD and MCPVault via internal Docker networking - not your host filesystem or other processes.
 
 See [mcp-connector/README.md](./mcp-connector/) for full details.
