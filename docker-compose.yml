@@ -15,8 +15,7 @@ services:
     env_file:
       - .env
     ports:
-      # Bind ONLY to localhost for Tailscale serve security
-      # Services are NOT exposed on local network - only via Tailscale
+      # Expose on localhost - Tailscale serve will proxy from tailnet
       - "127.0.0.1:8181:8181"
     restart: unless-stopped
     working_dir: /vault
@@ -40,8 +39,7 @@ services:
     env_file:
       - .env
     ports:
-      # Bind ONLY to localhost for Tailscale serve security
-      # Services are NOT exposed on local network - only via Tailscale
+      # Expose on localhost - Tailscale serve will proxy from tailnet
       - "127.0.0.1:8182:8182"
     restart: unless-stopped
     stdin_open: true
@@ -63,8 +61,8 @@ services:
       # MCP_AUTH_TOKEN: your-secure-token-here
       - PORT=50880
     ports:
-      # Expose MCP connector on localhost only
-      # Will be exposed via Tailscale for secure remote access
+      # Expose on localhost - Tailscale serve will proxy from tailnet
+      # This ensures services are NOT exposed on local network
       - "127.0.0.1:50880:50880"
     restart: unless-stopped
     depends_on:

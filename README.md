@@ -10,16 +10,17 @@ Secure Docker Compose setup running two independent MCP servers for your Obsidia
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │  Tailscale Network (Authenticated)                     │ │
 │  │  ┌─────────────┐     ┌─────────────────────────────┐   │ │
-│  │  │ Tailscale   │────▶│  http://<tailscale-ip>:8181 │   │ │
-│  │  │ Serve Proxy │     │  https://<hostname>/qmd       │   │ │
+│  │  │ Tailscale   │────▶│  https://<hostname>/qmd    │   │ │
+│  │  │ Serve       │     │  https://<hostname>/mcpvault│   │ │
 │  │  └─────────────┘     └─────────────────────────────┘   │ │
 │  │         │                        │                      │ │
-│  │         │              (via Docker)                     │ │
-│  │         ▼                        ▼                      │ │
+│  │         │   (Tailscale proxies   │                      │ │
+│  │         ▼    to localhost)       ▼                      │ │
 │  │  ┌─────────────────────────────────────────────────┐   │ │
-│  │  │  Localhost Only (NOT exposed to LAN)            │   │ │
+│  │  │  Localhost Only (Docker containers)             │   │ │
 │  │  │  • 127.0.0.1:8181 → QMD (semantic search)      │   │ │
-│  │  │  • 127.0.0.1:8182 → MCPVault (vault access)     │   │ │
+│  │  │  • 127.0.0.1:8182 → MCPVault (vault access)    │   │ │
+│  │  │  • 127.0.0.1:50880 → MCP Connector             │   │ │
 │  │  └─────────────────────────────────────────────────┘   │ │
 │  └─────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
@@ -33,8 +34,9 @@ Secure Docker Compose setup running two independent MCP servers for your Obsidia
 ```
 
 **Key Security Features:**
-- ✅ Services bind only to `127.0.0.1` (not `0.0.0.0`)
+- ✅ Services bind only to `127.0.0.1` inside Docker (not exposed on local network)
 - ✅ **Zero exposure** to local WiFi/coffee shop networks
+- ✅ Tailscale serve proxies from tailnet to localhost securely
 - ✅ Access only through authenticated Tailscale connections
 - ✅ No firewall rules or port forwarding needed
 - ✅ Automatic end-to-end encryption via Tailscale
@@ -249,14 +251,73 @@ tailscale serve --https=0 --http=0
 ./tailscale/uninstall-launchagent.sh
 ```
 
+## Connection URLs
+
+After setting up `tailscale serve`, your services are available at:
+
+| Service | URL | For |
+|---------|-----|-----|
+| QMD | `https://<YOUR_HOSTNAME>/qmd/mcp` | Direct MCP access |
+| MCPVault | `https://<YOUR_HOSTNAME>/mcpvault/mcp` | Direct MCP access |
+| MCP Connector | `https://<YOUR_HOSTNAME>/mcp-connector` | TypingMind integration |
+
+**Get your hostname:**
+```bash
+tailscale status | head -1
+# Output: 100.x.x.x  ingos-macbook-air  yourname@  macOS  -
+#                   ^^^^^^^^^^^^^^^^^
+#                   Your hostname
+```
+
+**Example:** If your hostname is `your-hostname.tailXXXX.ts.net`:
+- QMD: `https://your-hostname.tailXXXX.ts.net/qmd/mcp`
+- MCP Connector: `https://your-hostname.tailXXXX.ts.net/mcp-connector`
+
+### For iOS/iPhone Users
+
+If your iPhone can't resolve the MagicDNS hostname, you have two options:
+
+**Option A: Fix iOS DNS** (recommended)
+- See [docs/ios-troubleshooting.md](./docs/ios-troubleshooting.md)
+- Usually just needs Tailscale app restart or DNS toggle
+
+**Option B: Use IP-Based Connection** (if DNS won't work)
+```
+http://<TAILSCALE_IP>:<PORT>
+```
+
+However, note that the current setup uses `tailscale serve` which creates HTTPS endpoints on the **hostname**, not the IP. For IP-based access, you'd need to either:
+1. Accept that IP access requires using HTTP (not HTTPS) which is still encrypted by Tailscale
+2. Set up custom SSL certificates for your Tailscale IP
+
 ## Troubleshooting
 
 ### Services not accessible from other devices
 
-1. Check Tailscale is connected: `tailscale status`
-2. Verify tailscale serve: `tailscale serve status`
-3. Test locally first: `curl http://127.0.0.1:8181/health`
-4. Check Docker containers: `docker ps`
+1. **Verify Tailscale is connected on both devices:**
+   ```bash
+   # On your Mac
+tailscale status
+   # Should show both your Mac and iPhone connected
+   ```
+
+2. **Check tailscale serve is running:**
+   ```bash
+   tailscale serve status
+   # Should show /qmd, /mcpvault, and /mcp-connector
+   ```
+
+3. **Test from this Mac first:**
+   ```bash
+   # Get your auth token
+   TOKEN=$(docker logs typingmind-mcp-connector | grep "Auth Token:" | tail -1 | sed 's/.*Auth Token: //')
+   
+   # Test via Tailscale hostname
+   curl -H "Authorization: Bearer $TOKEN" \
+        https://$(tailscale ip -4 | xargs dig +short -x | cut -d' ' -f1)/mcp-connector/ping
+   ```
+
+4. **Check Docker containers:** `docker ps`
 
 ### LaunchAgent not starting
 
@@ -272,13 +333,23 @@ launchctl start com.tailscale.serve.pkm
 
 ### Connection refused from other devices
 
-Ensure you're using the **Tailscale IP** (100.x.x.x), not localhost:
-```bash
-# Wrong (only works on host machine)
-curl http://127.0.0.1:8181/mcp
+**Symptom:** Can access from this Mac, but not from iPhone or other tailnet devices.
 
-# Right (works from any tailnet device)
-curl http://$(tailscale ip -4):8181/mcp
+**Most likely cause:** Your Tailscale IP has changed.
+
+**Fix:**
+```bash
+# Run the IP checker to detect and fix
+./tailscale/check-tailscale-ip.sh
+```
+
+**Alternative:** Access directly via IP instead of hostname:
+```bash
+# Get current Tailscale IP
+TAILSCALE_IP=$(tailscale ip -4)
+
+# Use this IP in your MCP clients
+echo "Use: http://${TAILSCALE_IP}:50880"
 ```
 
 ## Individual Services
@@ -289,11 +360,11 @@ See detailed documentation:
 
 ## Security Checklist
 
-- [ ] Services bind to `127.0.0.1` only (verify in `docker-compose.yml`)
-- [ ] Tailscale serve is configured (`tailscale serve status`)
+- [ ] Services bind to `127.0.0.1` only in Docker (verify in `docker-compose.yml`)
+- [ ] Verified no exposure on local network: `netstat -an | grep -E "8181|8182|50880"` (should show only 127.0.0.1)
+- [ ] Tailscale serve is configured (`tailscale serve status` shows all three endpoints)
 - [ ] LaunchAgent installed for auto-start (optional but recommended)
-- [ ] Verified no exposure on local network (check `netstat -an | grep 8181`)
-- [ ] MCP clients configured with Tailscale IP, not localhost
+- [ ] MCP clients configured with Tailscale hostname (e.g., `your-hostname.tailXXXX.ts.net`)
 
 ## Requirements
 
