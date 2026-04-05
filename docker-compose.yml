@@ -5,10 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: mcp-servers
     volumes:
-      # Mount full Obsidian vault for MCPVault (port 8182)
-      - "/path/to/your/vault:/vault:ro"
-      # Mount book collection for QMD (port 8181)
-      - "/path/to/your/vault/books:/collections/books:ro"
+      # Mount Obsidian vault for both QMD and MCPVault (read/write)
+      - "/path/to/your/vault:/vault"
       # Persistent cache for QMD index
       - qmd-cache:/root/.cache/qmd
     environment:
@@ -24,7 +22,7 @@ services:
     ports:
       - "8181:8181"  # QMD MCP server
       - "8182:8182"  # MCPVault server
-    working_dir: /collections
+    working_dir: /vault
     # Keep container running and allow interactive access
     stdin_open: true
     tty: true

@@ -1,5 +1,5 @@
 # Dual MCP Server Container
-# - QMD (port 8181): Books collection with OpenAI embeddings
+# - QMD (port 8181): Obsidian vault with OpenAI embeddings
 # - MCPVault (port 8182): Obsidian vault access
 
 FROM oven/bun:1-debian
@@ -28,8 +28,8 @@ RUN bun install
 # Build the project
 RUN bun run build
 
-# Create a directory for mcpvault HTTP server
-RUN mkdir -p /app/mcpvault /collections /vault /root/.cache/qmd
+# Create a directory for mcpvault HTTP server and vault
+RUN mkdir -p /app/mcpvault /vault /root/.cache/qmd
 
 # Copy mcpvault HTTP server files
 COPY mcpvault-http.ts /app/mcpvault/
