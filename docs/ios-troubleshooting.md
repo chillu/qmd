@@ -1,117 +1,136 @@
 # iOS Troubleshooting Guide
 
-## Problem: iPhone Can't Resolve MagicDNS Hostname
+## Problem: iPhone Can't Connect to Tailscale Services
 
-Even though Tailscale is enabled on iOS with MagicDNS, sometimes iOS devices can't resolve `.ts.net` hostnames. This is a known issue with iOS DNS handling.
+Even though Tailscale is enabled on iOS, you may not be able to connect to services on your tailnet from iPhone/iPad.
 
-## Solution 1: Use Tailscale IP Address (Recommended)
+## Most Common Cause: iCloud Private Relay
 
-Instead of the hostname, use your Mac's **Tailscale IP** directly:
+**iCloud Private Relay** is the #1 cause of Tailscale connectivity issues on iOS.
 
-**Replace:**
-```
-https://your-hostname.tailXXXX.ts.net/mcp-connector
-```
+### How to Check and Fix
 
-**With:**
-```
-http://100.x.x.x:50880
-```
+1. **Open Settings** on your iPhone
+2. Tap your **name/Apple ID** at the top
+3. Tap **iCloud**
+4. Tap **Private Relay**
+5. **Turn it OFF**
 
-### URLs for iOS:
+**Alternative path:**
+- Settings → Apple ID → iCloud → Private Relay → **Off**
 
-| Service | iOS URL |
-|---------|---------|
-| MCP Connector | `http://100.x.x.x:50880` |
-| QMD | `http://100.x.x.x:8181/mcp` |
-| MCPVault | `http://100.x.x.x:8182/mcp` |
+### Why This Happens
 
-**Note:** Use `http://` not `https://` when using IP addresses, unless you configure custom SSL certificates.
+iCloud Private Relay:
+- Routes your DNS queries through Apple's servers
+- Can override Tailscale's MagicDNS
+- May block connections to Tailscale IPs (100.x.x.x)
+- Can prevent Safari from resolving .ts.net domains
 
-## Solution 2: iOS DNS Troubleshooting
+### Test After Disabling
 
-If you want to use hostnames, try these steps:
+After turning off Private Relay:
 
-### Step 1: Force Quit Tailscale App
-1. Double-tap home button / swipe up from bottom
-2. Find Tailscale app
-3. Swipe up to force quit
-4. Reopen Tailscale
+1. **Wait 10-30 seconds** for network to reconfigure
+2. **Open Safari**
+3. Navigate to: `https://your-hostname.tailXXXX.ts.net/mcp-connector/ping`
+4. Should show: `{"status":"ok"}`
 
-### Step 2: Toggle MagicDNS
-1. Open Tailscale app on iPhone
-2. Go to Settings (gear icon)
-3. Toggle "Use Tailscale DNS" OFF
-4. Wait 5 seconds
-5. Toggle it back ON
+## Other iOS Issues
 
-### Step 3: Restart Tailscale Connection
-1. In Tailscale app, tap the toggle to disconnect
-2. Wait 5 seconds
-3. Tap to reconnect
+### Safari Content Blockers
 
-### Step 4: Test DNS Resolution
-Open Safari and try:
-```
-http://your-hostname.tailXXXX.ts.net:50880/ping
-```
+Content blockers (like AdGuard, 1Blocker) may block .ts.net domains:
 
-Or use the Tailscale IP directly:
-```
-http://100.x.x.x:50880/ping
-```
+1. Settings → Safari → Extensions
+2. Turn off all content blockers temporarily
+3. Test connection
+4. Re-enable one by one to find the culprit
 
-## Solution 3: Update TypingMind Configuration
+### Screen Time Web Restrictions
 
-### Option A: Use IP Address (Immediate fix)
-In TypingMind iOS app:
-- **Connector URL**: `http://100.x.x.x:50880`
-- **Auth Token**: (same as before)
+If Screen Time is enabled with web restrictions:
 
-### Option B: Add Both URLs
-Configure multiple MCP connectors:
-1. One for Mac: `https://your-hostname.tailXXXX.ts.net/mcp-connector`
-2. One for iPhone: `http://100.x.x.x:50880`
+1. Settings → Screen Time → Content & Privacy Restrictions
+2. Content Restrictions → Web Content
+3. If set to "Limit Adult Websites", try "Unrestricted"
+4. Or add `.ts.net` to allowed sites
 
-## Why This Happens
+### DNS Over HTTPS (DoH) from Carrier
 
-iOS has strict DNS handling that sometimes conflicts with Tailscale MagicDNS:
-- iOS uses "DNS over HTTPS" (DoH) from the ISP by default
-- Some carriers block or intercept DNS queries
-- iOS may prioritize cellular DNS over VPN DNS
-- MagicDNS can take time to sync on mobile devices
+Some cellular carriers enable DoH which conflicts with Tailscale:
 
-## Testing Connectivity
+1. Settings → Wi-Fi → [Your Network] → Configure DNS
+2. Set to "Automatic" (not Manual)
+3. Or try: Settings → General → VPN & Device Management → DNS
+4. Delete any custom DNS profiles
 
-From your iPhone (with Tailscale connected):
+### Tailscale App Issues
 
-1. **Test with Safari:**
-   ```
-   http://100.x.x.x:50880/ping
-   ```
-   Should return: `{"status":"ok"}`
+If Tailscale app shows "Active" but connections fail:
 
-2. **Test in Tailscale App:**
-   - Open Tailscale app
-   - Tap on your Mac (ingos-macbook-air)
-   - Try to ping it
+1. **Force quit** Tailscale app (swipe up, find Tailscale, swipe up)
+2. **Reopen** Tailscale app
+3. Wait for "Active" status
+4. Try connection again
 
-3. **Check iPhone Tailscale IP:**
-   - In Tailscale app, your iPhone should show an IP like `100.94.x.x`
-   - If no IP shown, you're not connected
+### MagicDNS Not Resolving
 
-## Persistent Fix
+If DNS works for some services (like homeassistant) but not others:
 
-If you want hostnames to work reliably:
+**Different services may use different exposure methods:**
+- **Home Assistant** might use Tailscale Funnel (public HTTPS)
+- **Your services** use Tailscale Serve (tailnet-only)
+- Funnel works differently than Serve
 
-1. Use **Solution 1 (IP addresses)** for now
-2. File a bug with Tailscale support about iOS MagicDNS issues
-3. Consider using a **custom domain** with Tailscale Funnel (requires paid plan)
+**Check your service URL format:**
+- ✅ `https://hostname.ts.net/path` (Tailscale Serve/Funnel)
+- ❌ `http://100.x.x.x:port` (raw IP - often blocked by iOS)
+
+## Quick Diagnostic Checklist
+
+- [ ] iCloud Private Relay: **OFF**
+- [ ] Tailscale app: **Active** (green)
+- [ ] Safari content blockers: **Disabled** (for testing)
+- [ ] Screen Time web restrictions: **Unrestricted** (for testing)
+- [ ] Connected to WiFi or cellular with data
+
+## If Nothing Works
+
+Try using **Chrome or Firefox** on iOS instead of Safari:
+
+1. Download Chrome from App Store
+2. Try accessing: `https://your-hostname.tailXXXX.ts.net/mcp-connector/ping`
+3. Some browsers handle Tailscale differently
+
+## Related Issues
+
+### Can Resolve DNS But Not Connect
+
+If Safari shows "Cannot Open Page" but you can ping the hostname:
+- Likely Private Relay or content blocker
+- Try the fixes above
+
+### Works on WiFi But Not Cellular
+
+Cellular carriers sometimes block Tailscale:
+- Toggle airplane mode on/off
+- Check if carrier has "VPN" restrictions
+- Some business/corporate plans block Tailscale
+
+### Works on Mac But Not iPhone
+
+iOS has stricter network policies than macOS:
+- All the above iOS-specific restrictions apply
+- macOS doesn't have Private Relay in the same way
 
 ## Summary
 
-**For immediate use on iPhone:**
-- Connector URL: `http://100.x.x.x:50880`
-- Auth Token: (from `docker logs typingmind-mcp-connector`)
+**For iPhone access to work:**
+1. ✅ Tailscale enabled and Active
+2. ✅ **iCloud Private Relay: OFF**
+3. ✅ No content blockers interfering
+4. ✅ Using MagicDNS hostname (not raw IP)
+5. ✅ HTTPS URLs work better than HTTP on iOS
 
-This bypasses DNS entirely and connects directly via Tailscale's encrypted tunnel.
+**The most common fix:** Just turn off iCloud Private Relay.
