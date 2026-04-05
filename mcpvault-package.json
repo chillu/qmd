@@ -1,0 +1,9 @@
+{
+  "name": "mcpvault-http-server",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@bitbonsai/mcpvault": "^0.11.0",
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  }
+}
