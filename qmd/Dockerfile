@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     sqlite3 \
     libsqlite3-dev \
     netcat-openbsd \
+    cron \
+    flock \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -30,9 +32,20 @@ RUN bun run build
 # Create cache directory
 RUN mkdir -p /root/.cache/qmd
 
-# Copy entrypoint script
+# Copy scripts
 COPY entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+COPY auto-update.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/auto-update.sh
+
+# Create log file for cron
+RUN touch /tmp/qmd-update.log
+
+# Add crontab for auto-update every minute
+RUN echo "* * * * * /usr/local/bin/auto-update.sh" > /etc/cron.d/qmd-update && \
+    chmod 0644 /etc/cron.d/qmd-update && \
+    crontab /etc/cron.d/qmd-update
 
 # Set environment variables
 ENV NODE_ENV=production

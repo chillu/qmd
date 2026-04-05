@@ -27,5 +27,9 @@ fi
 echo "[QMD] Running embed to index collections..."
 qmd embed 2>/dev/null || echo "[QMD] Embed completed or nothing new to index"
 
+# Start cron daemon for auto-update
+echo "[QMD] Starting cron daemon for auto-update..."
+service cron start
+
 echo "[QMD] Starting MCP server on port 8181..."
 exec qmd mcp --http --port 8181 "$@"
