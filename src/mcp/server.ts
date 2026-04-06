@@ -26,6 +26,7 @@ import {
   type ExpandedQuery,
   type IndexStatus,
 } from "../index.js";
+import { setEmbeddingConfig } from "../llm.js";
 
 // =============================================================================
 // Types for structured content
@@ -523,7 +524,24 @@ Intent-aware lex (C++ performance, not sports):
 // Transport: stdio (default)
 // =============================================================================
 
+/**
+ * Initialize embedding configuration from environment variables.
+ * Mirrors the behavior of the CLI for OpenAI support.
+ */
+function initializeEmbeddingConfig(): void {
+  if (process.env.QMD_OPENAI === '1') {
+    setEmbeddingConfig({
+      provider: 'openai',
+      openai: {
+        apiKey: process.env.OPENAI_API_KEY || '',
+        baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+      },
+    });
+  }
+}
+
 export async function startMcpServer(): Promise<void> {
+  initializeEmbeddingConfig();
   const store = await createStore({ dbPath: getDefaultDbPath() });
   const server = await createMcpServer(store);
   const transport = new StdioServerTransport();
@@ -545,6 +563,7 @@ export type HttpServerHandle = {
  * Binds to localhost only. Returns a handle for shutdown and port discovery.
  */
 export async function startMcpHttpServer(port: number, options?: { quiet?: boolean }): Promise<HttpServerHandle> {
+  initializeEmbeddingConfig();
   const store = await createStore({ dbPath: getDefaultDbPath() });
 
   // Pre-fetch default collection names for REST endpoint
