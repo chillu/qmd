@@ -1,0 +1,12 @@
+{
+  "collections": {
+    "books": {
+      "path": "books",
+      "description": "Book notes and highlights from reading"
+    },
+    "notes": {
+      "path": "notes",
+      "description": "General Obsidian vault notes"
+    }
+  }
+}

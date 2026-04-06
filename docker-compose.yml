@@ -6,12 +6,15 @@ services:
     container_name: qmd-server
     volumes:
       # Mount Obsidian vault (read/write)
-      - "/path/to/your/vault:/vault"
+      - "${VAULT_PATH}:/vault"
       # Persistent cache for QMD index
       - qmd-cache:/root/.cache/qmd
+      # User-specific collection configuration (from repo root)
+      - "./config.json:/config.json:ro"
     environment:
       - QMD_OPENAI=1
       - OPENAI_BASE_URL=https://api.openai.com/v1
+      - QMD_CONFIG_PATH=/config.json
     env_file:
       - .env
     ports:
@@ -32,7 +35,7 @@ services:
     container_name: mcpvault-server
     volumes:
       # Mount Obsidian vault (read/write)
-      - "/path/to/your/vault:/vault"
+      - "${VAULT_PATH}:/vault"
     environment:
       - VAULT_PATH=/vault
       - MCPVAULT_PORT=8182

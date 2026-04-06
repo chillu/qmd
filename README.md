@@ -49,6 +49,65 @@ Secure Docker Compose setup running two independent MCP servers for your Obsidia
 | [MCPVault](./mcpvault/) | 8182 | `/mcpvault` | Direct vault access for AI agents |
 | [MCP Connector](./mcp-connector/) | 50880 | `/mcp-connector` | **Docker-isolated** TypingMind bridge |
 
+## Configuration
+
+Before starting, copy the example configuration files:
+
+```bash
+cp .env.example .env
+cp config.example.json config.json
+```
+
+Then edit them with your settings:
+
+### 1. Set Your Vault Path
+
+Edit `.env` and set your Obsidian vault path:
+
+```bash
+# .env
+VAULT_PATH=/Users/yourname/Documents/ObsidianVault
+```
+
+### 2. Configure QMD Collections (Optional)
+
+QMD can automatically index specific folders in your vault as "collections" for semantic search.
+
+1. **Copy the example configuration:**
+   ```bash
+   cp config.example.json config.json
+   ```
+
+2. **Customize `config.json`** with your collections:
+   ```json
+   {
+     "collections": {
+       "books": {
+         "path": "books",
+         "description": "Book notes and highlights from reading"
+       },
+       "notes": {
+         "path": "notes",
+         "description": "General Obsidian vault notes"
+       }
+     }
+   }
+   ```
+
+   - `path`: Folder path **relative to your vault root**
+   - `description`: Context description for AI queries
+
+3. **Place `config.json` next to your `.env` file** (in the repo root, not inside your vault)
+
+> **Note:** `config.json` is gitignored - it won't be committed to version control.
+
+### 3. Add Your OpenAI API Key
+
+```bash
+# .env
+OPENAI_API_KEY=sk-your-key-here
+```
+
 ## Quick Start
 
 ### 1. Start the Services
@@ -218,11 +277,17 @@ Other Device → Tailscale Tunnel → Your Mac (Tailscale)
 
 ## Shared Vault
 
-Both services mount the same vault at `/vault`:
+Both services mount the same vault at `/vault`. The vault path is configured via the `VAULT_PATH` environment variable in `.env`:
 
 ```yaml
+# docker-compose.yml
 volumes:
-  - "/path/to/your/vault:/vault"
+  - "${VAULT_PATH}:/vault"
+```
+
+Set this in your `.env` file:
+```bash
+VAULT_PATH=/path/to/your/vault
 ```
 
 ## Management Commands

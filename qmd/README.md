@@ -28,16 +28,53 @@ qmd query "time management techniques"
 
 ## Auto-Initialized Collections
 
-On first start, the container automatically creates collections for:
+On first start, QMD automatically creates collections based on your `config.json` file. Each collection maps a vault folder to a searchable index with a descriptive context.
 
-| Collection | Path | Description |
-|------------|------|-------------|
-| `books` | `/vault/books` | Book notes and highlights |
-| `notes` | `/vault/notes` | General vault notes |
+### Configuration
 
-Collections are only created if the directories exist. The index is persisted across container restarts via the `qmd-cache` Docker volume.
+1. Copy the example configuration from the repo root:
+   ```bash
+   cp ../config.example.json ../config.json
+   ```
 
-**To customize**: Edit `entrypoint.sh` and rebuild, or add collections manually via CLI.
+2. Edit `config.json` to define your collections:
+   ```json
+   {
+     "collections": {
+       "books": {
+         "path": "books",
+         "description": "Book notes and highlights from reading"
+       },
+       "notes": {
+         "path": "notes",
+         "description": "General Obsidian vault notes"
+       }
+     }
+   }
+   ```
+
+3. Place `config.json` in the repo root (next to `docker-compose.yml`)
+
+### How It Works
+
+- Collections are **only created if the directories exist** in your vault
+- Each collection gets a context description that helps AI queries understand what's in the collection
+- The index is persisted across container restarts via the `qmd-cache` Docker volume
+- No collections are hardcoded - everything comes from your `config.json`
+
+### Manual Collection Management
+
+You can also add collections manually via CLI:
+
+```bash
+# From inside the container
+docker exec -it qmd-server bash
+
+# Add a collection
+qmd collection add /vault/path/to/folder --name my-collection
+qmd context add qmd://my-collection "Description of this collection"
+qmd embed  # Re-index
+```
 
 ## MCP Server Usage
 
@@ -93,16 +130,7 @@ qmd status
 | `QMD_OPENAI` | `1` | Enable OpenAI-compatible mode |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI API endpoint |
 | `OPENAI_API_KEY` | *from .env* | Your OpenAI API key |
-
-## Adding Collections
-
-From inside the container:
-
-```bash
-qmd collection add /vault --name vault
-qmd context add qmd://vault "Obsidian vault notes"
-qmd embed
-```
+| `QMD_CONFIG_PATH` | `/config.json` | Path to collections config file |
 
 ## Architecture
 

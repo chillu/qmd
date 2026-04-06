@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# User-specific configuration
+config.json
+
 # Node.js / Bun
 node_modules/
 *.log
