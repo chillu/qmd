@@ -4,17 +4,27 @@ set -e
 # MCP Connector Entrypoint
 # Automatically connects to QMD and MCPVault services
 
-# Generate or use provided auth token
-if [ -z "$MCP_AUTH_TOKEN" ]; then
-    # Generate a random token if not provided
-    MCP_AUTH_TOKEN=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
-    echo "[MCP Connector] Generated auth token: $MCP_AUTH_TOKEN"
-    echo "[MCP Connector] Save this token! You'll need it for TypingMind configuration."
+TOKEN_FILE="/data/.mcp_auth_token"
+
+# Determine the auth token to use
+if [ -n "$MCP_AUTH_TOKEN" ]; then
+    # User provided a token via environment variable - use it
+    echo "[MCP Connector] Using provided auth token from environment"
+    FINAL_TOKEN="$MCP_AUTH_TOKEN"
+elif [ -f "$TOKEN_FILE" ]; then
+    # Use existing persisted token
+    FINAL_TOKEN=$(cat "$TOKEN_FILE")
+    echo "[MCP Connector] Using persisted auth token from $TOKEN_FILE"
 else
-    echo "[MCP Connector] Using provided auth token"
+    # Generate a new random token and persist it
+    FINAL_TOKEN=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
+    # Save to file for persistence across restarts
+    echo "$FINAL_TOKEN" > "$TOKEN_FILE"
+    echo "[MCP Connector] Generated and persisted new auth token to $TOKEN_FILE"
+    echo "[MCP Connector] Save this token! You'll need it for TypingMind configuration."
 fi
 
-export MCP_AUTH_TOKEN
+export MCP_AUTH_TOKEN="$FINAL_TOKEN"
 
 # Wait for services to be ready
 echo "[MCP Connector] Waiting for QMD and MCPVault to be ready..."

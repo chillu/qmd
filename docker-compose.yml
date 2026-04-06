@@ -59,8 +59,11 @@ services:
       context: ./mcp-connector
       dockerfile: Dockerfile
     container_name: typingmind-mcp-connector
+    volumes:
+      # Persistent storage for auth token (survives container restarts)
+      - mcp-connector-data:/data
     environment:
-      # Optional: Set your own auth token here, or one will be generated
+      # Optional: Set your own auth token here, or one will be generated and persisted
       # MCP_AUTH_TOKEN: your-secure-token-here
       - PORT=50880
     ports:
@@ -88,4 +91,6 @@ networks:
 
 volumes:
   qmd-cache:
+    driver: local
+  mcp-connector-data:
     driver: local
