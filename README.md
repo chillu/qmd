@@ -264,8 +264,8 @@ After setting up `tailscale serve`, your services are available at:
 **Get your hostname:**
 ```bash
 tailscale status | head -1
-# Output: 100.x.x.x  ingos-macbook-air  yourname@  macOS  -
-#                   ^^^^^^^^^^^^^^^^^
+# Output: 100.x.x.x  your-hostname  user@  macOS  -
+#                   ^^^^^^^^^^^^^
 #                   Your hostname
 ```
 
