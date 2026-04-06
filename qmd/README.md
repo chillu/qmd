@@ -135,7 +135,7 @@ qmd status
 ## Architecture
 
 - **Base Image**: `oven/bun:1-debian` (Bun runtime)
-- **QMD Fork**: `chillu/qmd:feat/openai-embeddings-clean`
+- **QMD Fork**: [`chillu/qmd:feat/openai-embeddings-clean`](https://github.com/chillu/qmd/tree/feat/openai-embeddings-clean) (based on [alexleach's PR #480](https://github.com/tobi/qmd/pull/480) to `tobi/qmd`)
 - **Document Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
 - **Query Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
 - **Reranking**: OpenAI gpt-4o-mini
@@ -157,5 +157,7 @@ docker exec qmd-server rm /root/.cache/qmd/index.sqlite
 ## References
 
 - [QMD Original](https://github.com/tobi/qmd) - Tobi Lutke's original project
-- [chillu Fork](https://github.com/chillu/qmd/tree/feat/openai-embeddings-clean) - Working OpenAI embeddings
+- [alexleach Fork](https://github.com/alexleach/qmd/tree/feat/openai-embeddings-clean) - OpenAI embeddings implementation
+- [tobi/qmd PR #480](https://github.com/tobi/qmd/pull/480) - Original OpenAI embeddings PR
+- [chillu Fork](https://github.com/chillu/qmd/tree/feat/openai-embeddings-clean) - Contains MCP server fixes
 - [MCP Protocol](https://modelcontextprotocol.io/) - Model Context Protocol specification
