@@ -1,10 +1,49 @@
 # QMD MCP Server
 # Port 8181: Obsidian vault with OpenAI embeddings
+#
+# OPTIMIZED BUILD with BuildKit cache mounts:
+# - apt-get packages cached across builds
+# - bun install cached (downloads + compiled native modules)
+# - Source changes only trigger rebuild, not re-install
+#
+# Enable BuildKit: export DOCKER_BUILDKIT=1
+# Or in docker-compose.yml: build.dockerfile.buildkit: true
 
-FROM oven/bun:1-debian
+# =============================================================================
+# Stage 1: Dependencies (cached until package.json changes)
+# =============================================================================
+FROM oven/bun:1-debian AS deps
 
-# Install required dependencies
+# Install nodejs and node-gyp for compiling native modules like better-sqlite3
 RUN apt-get update && apt-get install -y \
+    curl \
+    python3 \
+    make \
+    g++ \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /deps
+
+# Copy package files first for layer caching
+COPY package.json bun.lockb* ./
+
+# Install dependencies with BuildKit cache mount
+# This persists bun's cache across builds (downloaded packages + compiled artifacts)
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install
+
+# =============================================================================
+# Stage 2: Application
+# =============================================================================
+FROM oven/bun:1-debian AS app
+
+# Install system dependencies with apt cache mount
+# Packages are cached, only re-fetched if apt cache expired
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt \
+    apt-get update && apt-get install -y \
     git \
     curl \
     python3 \
@@ -17,20 +56,24 @@ RUN apt-get update && apt-get install -y \
     util-linux \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Clone the chillu/qmd fork with OpenAI embeddings support
-RUN git clone --branch feat/openai-embeddings-clean --depth 1 https://github.com/chillu/qmd.git .
+# Copy installed node_modules from deps stage
+COPY --from=deps /deps/node_modules ./node_modules
+
+# Copy source code from build context
+# Docker detects changes here - only rebuilds when source actually changes
+COPY . .
 
 # Patch: Fix MCP server to bind to 0.0.0.0 instead of localhost for Docker
 RUN sed -i 's/"localhost"/"0.0.0.0"/g' /app/src/mcp/server.ts
 
-# Install dependencies using Bun
-RUN bun install
-
-# Build the project
+# Build the project (TypeScript compilation only - fast!)
 RUN bun run build
+
+# =============================================================================
+# Stage 3: Runtime configuration
+# =============================================================================
 
 # Create cache directory
 RUN mkdir -p /root/.cache/qmd

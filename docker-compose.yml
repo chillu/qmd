@@ -1,8 +1,10 @@
 services:
   qmd:
     build:
-      context: ./qmd
-      dockerfile: Dockerfile
+      context: ./qmd-source
+      dockerfile: ../qmd/Dockerfile
+      # Enable BuildKit for cache mounts (apt-get and bun cache)
+      additional_contexts: {}
     container_name: qmd-server
     volumes:
       # Mount Obsidian vault (read/write)

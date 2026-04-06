@@ -6,6 +6,9 @@
 # User-specific configuration
 config.json
 
+# QMD source code (cloned from GitHub, not committed)
+qmd-source/
+
 # Node.js / Bun
 node_modules/
 *.log
