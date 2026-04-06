@@ -4621,11 +4621,14 @@ export async function structuredSearch(
         s.type === 'vec' || s.type === 'hyde'
     );
     if (vecSearches.length > 0) {
-      const llm = getLlm(store);
+      // Use OpenAI for embeddings when configured, otherwise use local LLM
+      const embedder = isUsingOpenAI() 
+        ? getDefaultEmbeddingLLM()
+        : getLlm(store);
       const textsToEmbed = vecSearches.map(s => formatQueryForEmbedding(s.query));
       hooks?.onEmbedStart?.(textsToEmbed.length);
       const embedStart = Date.now();
-      const embeddings = await llm.embedBatch(textsToEmbed);
+      const embeddings = await embedder.embedBatch(textsToEmbed);
       hooks?.onEmbedDone?.(Date.now() - embedStart);
 
       for (let i = 0; i < vecSearches.length; i++) {
