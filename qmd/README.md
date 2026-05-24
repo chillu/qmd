@@ -1,17 +1,17 @@
 # QMD MCP Server
 
-[QMD](https://github.com/tobi/qmd) (Query Markup Documents) with OpenAI embeddings for semantic search through your Obsidian vault.
+[QMD](https://github.com/tobi/qmd) (Query Markup Documents) with OpenAI-compatible backend for semantic search through your Obsidian vault.
 
-> **Fork lineage**: This uses `chillu/qmd`, a fork of `alexleach/qmd`, which tracks upstream `tobi/qmd`. The chillu fork includes working OpenAI embeddings support for both document indexing and queries.
+> **Fork lineage**: This uses [tobi/qmd PR #619](https://github.com/tobi/qmd/pull/619) by `loopyd`, which adds an OpenAI-compatible backend to upstream QMD. It lets QMD delegate embeddings, generation (query expansion), and reranking to any OpenAI-compatible API — including the real OpenAI API, or a local server like `llama-swap`.
 
 ## Features
 
 - **MCP Server**: Runs on port 8181 for AI agent integration
-- **Interactive CLI**: Access via `docker exec` for manual queries  
-- **Full OpenAI Integration**: Uses OpenAI API for **both** document embeddings and query embeddings (1536-dim)
+- **Interactive CLI**: Access via `docker exec` for manual queries
+- **Remote Embeddings**: Uses OpenAI API for embeddings — no local GPU required
 - **Fast Embeddings**: ~5 seconds for 35 books via OpenAI API vs ~40 seconds locally
 - **Persistent Storage**: Index survives container resets (stored in Docker volume)
-- **Hybrid Search**: BM25 + Vector search with re-ranking
+- **Hybrid Search**: BM25 + Vector search with re-ranking (reranking gracefully degrades to RRF-only when no rerank endpoint is available)
 
 ## Quick Start
 
@@ -127,18 +127,21 @@ qmd status
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `QMD_OPENAI` | `1` | Enable OpenAI-compatible mode |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI API endpoint |
+| `QMD_LLM_PROVIDER` | `openai-compatible` | Enable OpenAI-compatible backend |
+| `QMD_OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI API endpoint |
 | `OPENAI_API_KEY` | *from .env* | Your OpenAI API key |
+| `QMD_EMBED_MODEL` | `text-embedding-3-small` | OpenAI embedding model |
+| `QMD_GENERATE_MODEL` | `gpt-4o-mini` | OpenAI model for query expansion |
 | `QMD_CONFIG_PATH` | `/config.json` | Path to collections config file |
 
 ## Architecture
 
 - **Base Image**: `oven/bun:1-debian` (Bun runtime)
-- **QMD Fork**: [`chillu/qmd:feat/openai-embeddings-clean`](https://github.com/chillu/qmd/tree/feat/openai-embeddings-clean) (based on [alexleach's PR #480](https://github.com/tobi/qmd/pull/480) to `tobi/qmd`)
+- **QMD Source**: [tobi/qmd PR #619](https://github.com/tobi/qmd/pull/619) (`loopyd:feat/openai-compatible-llamaswap`) — OpenAI-compatible backend for upstream QMD
 - **Document Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
 - **Query Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
-- **Reranking**: OpenAI gpt-4o-mini
+- **Query Expansion**: OpenAI gpt-4o-mini via `/v1/chat/completions`
+- **Reranking**: Delegates to `/v1/rerank` if available; otherwise gracefully falls back to RRF-only scoring
 - **Database**: SQLite with FTS5 + sqlite-vec extension
 
 ## Troubleshooting
@@ -157,7 +160,6 @@ docker exec qmd-server rm /root/.cache/qmd/index.sqlite
 ## References
 
 - [QMD Original](https://github.com/tobi/qmd) - Tobi Lutke's original project
-- [alexleach Fork](https://github.com/alexleach/qmd/tree/feat/openai-embeddings-clean) - OpenAI embeddings implementation
-- [tobi/qmd PR #480](https://github.com/tobi/qmd/pull/480) - Original OpenAI embeddings PR
-- [chillu Fork](https://github.com/chillu/qmd/tree/feat/openai-embeddings-clean) - Contains MCP server fixes
+- [tobi/qmd PR #619](https://github.com/tobi/qmd/pull/619) - OpenAI-compatible backend support (embeddings, generation, reranking)
+- [loopyd Fork](https://github.com/loopyd/qmd/tree/feat/openai-compatible-llamaswap) - Branch with OpenAI-compatible backend
 - [MCP Protocol](https://modelcontextprotocol.io/) - Model Context Protocol specification

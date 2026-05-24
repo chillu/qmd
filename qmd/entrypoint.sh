@@ -1,8 +1,10 @@
 #!/bin/bash
 set -e
 
-export QMD_OPENAI=1
-export OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+export QMD_LLM_PROVIDER=openai-compatible
+export QMD_OPENAI_BASE_URL=${QMD_OPENAI_BASE_URL:-https://api.openai.com/v1}
+export QMD_EMBED_MODEL=${QMD_EMBED_MODEL:-text-embedding-3-small}
+export QMD_GENERATE_MODEL=${QMD_GENERATE_MODEL:-gpt-4o-mini}
 export PATH="/app/bin:$PATH"
 
 echo "[QMD] Initializing vault collections..."
