@@ -14,8 +14,8 @@ services:
       # User-specific collection configuration (from repo root)
       - "./config.json:/config.json:ro"
     environment:
-      - QMD_OPENAI=1
-      - OPENAI_BASE_URL=https://api.openai.com/v1
+      - QMD_EMBED_PROVIDER=jina
+      - QMD_RERANK_PROVIDER=jina
       - QMD_CONFIG_PATH=/config.json
     env_file:
       - .env

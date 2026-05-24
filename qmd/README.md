@@ -1,17 +1,18 @@
 # QMD MCP Server
 
-[QMD](https://github.com/tobi/qmd) (Query Markup Documents) with OpenAI embeddings for semantic search through your Obsidian vault.
+[QMD](https://github.com/tobi/qmd) (Query Markup Documents) with Jina AI embeddings and reranking for semantic search through your Obsidian vault.
 
-> **Fork lineage**: This uses `chillu/qmd`, a fork of `alexleach/qmd`, which tracks upstream `tobi/qmd`. The chillu fork includes working OpenAI embeddings support for both document indexing and queries.
+> **Fork lineage**: This uses [`pluginmd/qmd`](https://github.com/pluginmd/qmd), an enhanced fork of upstream `tobi/qmd`. It adds Jina AI as a remote provider for embeddings and reranking — fully portable to server environments without a GPU.
 
 ## Features
 
 - **MCP Server**: Runs on port 8181 for AI agent integration
-- **Interactive CLI**: Access via `docker exec` for manual queries  
-- **Full OpenAI Integration**: Uses OpenAI API for **both** document embeddings and query embeddings (1536-dim)
-- **Fast Embeddings**: ~5 seconds for 35 books via OpenAI API vs ~40 seconds locally
+- **Interactive CLI**: Access via `docker exec` for manual queries
+- **Remote Embeddings**: Uses Jina AI API for embeddings — no local GPU required
+- **Remote Reranking**: Uses Jina AI API for reranking — full hybrid search quality
+- **Fast Embeddings**: ~5 seconds for 35 books via Jina API vs ~40 seconds locally
 - **Persistent Storage**: Index survives container resets (stored in Docker volume)
-- **Hybrid Search**: BM25 + Vector search with re-ranking
+- **Hybrid Search**: BM25 + Vector search with Jina AI re-ranking
 
 ## Quick Start
 
@@ -127,18 +128,18 @@ qmd status
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `QMD_OPENAI` | `1` | Enable OpenAI-compatible mode |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI API endpoint |
-| `OPENAI_API_KEY` | *from .env* | Your OpenAI API key |
+| `QMD_EMBED_PROVIDER` | `jina` | Use Jina AI for embeddings |
+| `QMD_RERANK_PROVIDER` | `jina` | Use Jina AI for reranking |
+| `JINA_API_KEY` | *from .env* | Your Jina AI API key |
 | `QMD_CONFIG_PATH` | `/config.json` | Path to collections config file |
 
 ## Architecture
 
 - **Base Image**: `oven/bun:1-debian` (Bun runtime)
-- **QMD Fork**: [`chillu/qmd:feat/openai-embeddings-clean`](https://github.com/chillu/qmd/tree/feat/openai-embeddings-clean) (based on [alexleach's PR #480](https://github.com/tobi/qmd/pull/480) to `tobi/qmd`)
-- **Document Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
-- **Query Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
-- **Reranking**: OpenAI gpt-4o-mini
+- **QMD Source**: [`pluginmd/qmd`](https://github.com/pluginmd/qmd) — enhanced fork of upstream `tobi/qmd` with Jina AI remote provider support
+- **Document Embeddings**: Jina jina-embeddings-v3 (1024 dimensions, 8192 ctx)
+- **Query Embeddings**: Jina jina-embeddings-v3 (1024 dimensions, 8192 ctx)
+- **Reranking**: Jina jina-reranker-v2-base-multilingual
 - **Database**: SQLite with FTS5 + sqlite-vec extension
 
 ## Troubleshooting
@@ -157,7 +158,5 @@ docker exec qmd-server rm /root/.cache/qmd/index.sqlite
 ## References
 
 - [QMD Original](https://github.com/tobi/qmd) - Tobi Lutke's original project
-- [alexleach Fork](https://github.com/alexleach/qmd/tree/feat/openai-embeddings-clean) - OpenAI embeddings implementation
-- [tobi/qmd PR #480](https://github.com/tobi/qmd/pull/480) - Original OpenAI embeddings PR
-- [chillu Fork](https://github.com/chillu/qmd/tree/feat/openai-embeddings-clean) - Contains MCP server fixes
+- [pluginmd/qmd](https://github.com/pluginmd/qmd) - Enhanced fork with Jina AI remote provider, observability, and secrets hygiene
 - [MCP Protocol](https://modelcontextprotocol.io/) - Model Context Protocol specification

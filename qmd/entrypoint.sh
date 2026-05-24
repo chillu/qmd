@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-export QMD_OPENAI=1
-export OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+export QMD_EMBED_PROVIDER=${QMD_EMBED_PROVIDER:-jina}
+export QMD_RERANK_PROVIDER=${QMD_RERANK_PROVIDER:-jina}
 export PATH="/app/bin:$PATH"
 
 echo "[QMD] Initializing vault collections..."

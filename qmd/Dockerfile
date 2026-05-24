@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /deps
 
 # Copy package files first for layer caching
-COPY package.json bun.lockb* ./
+COPY package.json bun.lock* ./
 
 # Install dependencies with BuildKit cache mount
 # This persists bun's cache across builds (downloaded packages + compiled artifacts)
@@ -95,8 +95,8 @@ RUN echo "* * * * * /usr/local/bin/auto-update.sh" > /etc/cron.d/qmd-update && \
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV QMD_OPENAI=1
-ENV OPENAI_BASE_URL=https://api.openai.com/v1
+ENV QMD_EMBED_PROVIDER=jina
+ENV QMD_RERANK_PROVIDER=jina
 ENV PATH="/app/bin:$PATH"
 
 # Expose MCP server port

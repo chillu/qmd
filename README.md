@@ -45,7 +45,7 @@ Secure Docker Compose setup running two independent MCP servers for your Obsidia
 
 | Service | Local Port | Tailscale Path | Description |
 |---------|-----------|----------------|-------------|
-| [QMD](./qmd/) | 8181 | `/qmd` | Semantic search with OpenAI embeddings |
+| [QMD](./qmd/) | 8181 | `/qmd` | Semantic search with Jina AI embeddings |
 | [MCPVault](./mcpvault/) | 8182 | `/mcpvault` | Direct vault access for AI agents |
 | [MCP Connector](./mcp-connector/) | 50880 | `/mcp-connector` | **Docker-isolated** TypingMind bridge |
 
@@ -101,12 +101,46 @@ QMD can automatically index specific folders in your vault as "collections" for 
 
 > **Note:** `config.json` is gitignored - it won't be committed to version control.
 
-### 3. Add Your OpenAI API Key
+### 3. Add Your Jina AI API Key
+
+Get a free API key at [jina.ai](https://jina.ai/). Then add it to `.env`:
 
 ```bash
 # .env
-OPENAI_API_KEY=sk-your-key-here
+JINA_API_KEY=jina_your_api_key_here
 ```
+
+The `QMD_EMBED_PROVIDER` and `QMD_RERANK_PROVIDER` variables are already set to `jina` in `docker-compose.yml`, so you don't need to change them unless you want to switch backends.
+
+## Why pluginmd/qmd?
+
+We use [`pluginmd/qmd`](https://github.com/pluginmd/qmd) — an enhanced fork of upstream [`tobi/qmd`](https://github.com/tobi/qmd) — for our semantic search backend. Here's why:
+
+### GPU-Free Server Deployment
+
+Upstream QMD runs embedding and reranking models locally via `node-llama-cpp`, which requires a GPU for acceptable performance. `pluginmd/qmd` adds a **polymorphic provider backend** that lets us delegate the heavy work to remote APIs:
+
+- **Embeddings** → Jina AI `jina-embeddings-v3` (1024-dim, 8192 token context)
+- **Reranking** → Jina AI `jina-reranker-v2-base-multilingual`
+- **Query expansion** → still runs locally (latency-critical, ~1.1B parameter model)
+
+This makes the stack fully portable to CPU-only servers, CI runners, and low-end laptops.
+
+### Trade-offs
+
+| Aspect | Local (upstream) | Jina Remote (this fork) |
+|--------|-----------------|------------------------|
+| Embedding speed | ~40s for 35 books | ~5s for 35 books |
+| GPU required | Yes for comfort | No |
+| Multilingual | English-biased | 89 languages (including CJK) |
+| Query expansion | Fast on GPU | 10–15s cold start on CPU |
+| Privacy | Fully offline | Documents sent to Jina API |
+
+**The main downside:** Query expansion always runs locally (it's not delegated to Jina), so the first `qmd query` after container restart has a ~10–15 second cold-start while the 1.1B parameter model loads into RAM. After that, the model stays warm. For fast repeated queries, use `qmd search` (BM25 only) or `qmd vsearch` (vector only) — neither needs query expansion.
+
+### What About OpenAI?
+
+We previously experimented with [`tobi/qmd` PR #619](https://github.com/tobi/qmd/pull/619) (OpenAI-compatible backend) on a separate branch. It works for embeddings and query expansion, but OpenAI has no `/v1/rerank` endpoint — so reranking silently fails and falls back to RRF-only scoring. Jina gives us the full hybrid pipeline.
 
 ## Quick Start
 
