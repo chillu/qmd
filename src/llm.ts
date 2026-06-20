@@ -1666,12 +1666,22 @@ export class OpenAICompatibleLLM implements LLM {
     documents: RerankDocument[],
     options: RerankOptions = {}
   ): Promise<RerankResult> {
+    const model = options.model ?? this.rerankModelUri;
     if (documents.length === 0) {
-      return { results: [], model: options.model ?? this.rerankModelUri };
+      return { results: [], model };
+    }
+
+    // OpenAI's public API does not expose a /rerank endpoint. Keep retrieval
+    // usable by preserving the incoming candidate order unless the caller has
+    // explicitly pointed this backend at a rerank-capable OpenAI-compatible API.
+    if (process.env.QMD_OPENAI_ENABLE_RERANK !== "1") {
+      return {
+        results: documents.map((doc, index) => ({ file: doc.file, score: 0, index })),
+        model,
+      };
     }
 
     try {
-      const model = options.model ?? this.rerankModelUri;
       const rerankBatch = async (
         batch: RerankDocument[],
         start: number
@@ -1742,10 +1752,12 @@ export class OpenAICompatibleLLM implements LLM {
 
       return { results, model };
     } catch (error) {
-      console.error("Rerank error:", error);
+      if (process.env.QMD_OPENAI_LOG_RERANK_ERRORS === "1") {
+        console.error("Rerank error:", error);
+      }
       return {
         results: documents.map((doc, index) => ({ file: doc.file, score: 0, index })),
-        model: options.model ?? this.rerankModelUri,
+        model,
       };
     }
   }
