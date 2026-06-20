@@ -644,6 +644,29 @@ export function resolveLlamaGpuMode(
   return "auto";
 }
 
+type LlamaBuildMode = "auto" | "never" | "forceRebuild" | "try" | "autoAttempt";
+
+function resolveLlamaBuildMode(envValue = process.env.QMD_LLAMA_BUILD): LlamaBuildMode {
+  const normalized = envValue?.trim();
+  if (!normalized) return "auto";
+  if (normalized === "auto" || normalized === "never" || normalized === "forceRebuild" || normalized === "try" || normalized === "autoAttempt") {
+    return normalized;
+  }
+
+  process.stderr.write(`QMD Warning: invalid QMD_LLAMA_BUILD="${envValue}", using auto.\n`);
+  return "auto";
+}
+
+function resolveUsePrebuiltBinaries(envValue = process.env.QMD_LLAMA_USE_PREBUILT): boolean {
+  const normalized = envValue?.trim().toLowerCase() ?? "";
+  if (!normalized) return true;
+  if (["false", "off", "none", "disable", "disabled", "0", "no"].includes(normalized)) return false;
+  if (["true", "on", "enable", "enabled", "1", "yes"].includes(normalized)) return true;
+
+  process.stderr.write(`QMD Warning: invalid QMD_LLAMA_USE_PREBUILT="${envValue}", using prebuilt binaries.\n`);
+  return true;
+}
+
 async function disposeWithTimeout(resourceName: string, dispose: () => Promise<void>, timeoutMs = 1000): Promise<void> {
   const timeoutPromise = new Promise<"timeout">((resolve) => {
     setTimeout(() => resolve("timeout"), timeoutMs).unref();
@@ -871,29 +894,35 @@ export class LlamaCpp implements LLM {
   private async loadLlamaRuntime(allowBuild = true): Promise<Llama> {
     if (!this.llama) {
       const gpuMode = resolveLlamaGpuMode();
+      const buildMode = resolveLlamaBuildMode();
+      const usePrebuiltBinaries = resolveUsePrebuiltBinaries();
 
       const { getLlama, getLlamaGpuTypes, LlamaLogLevel } = await loadNodeLlamaCpp();
-      const loadLlama = async (gpu: LlamaGpuMode, sourceBuildAllowed = allowBuild, buildOverride?: "auto" | "never") =>
+      const loadLlama = async (gpu: LlamaGpuMode, sourceBuildAllowed = allowBuild, buildOverride?: LlamaBuildMode) =>
         await withNativeStdoutRedirectedToStderr(() => getLlama({
           // Prefer packaged prebuilt bindings before compiling llama.cpp locally.
           // node-llama-cpp documents gpu:"auto" as the best default: Metal on
           // Apple Silicon, CUDA when fully available, Vulkan where available,
           // then CPU. Use build:"auto" for normal loads and build:"never" for
           // diagnostic/probe paths that must not compile llama.cpp.
-          build: buildOverride ?? (sourceBuildAllowed ? "auto" : "never"),
+          build: buildOverride ?? (sourceBuildAllowed ? buildMode : "never"),
           logLevel: LlamaLogLevel.error,
           gpu,
           progressLogs: false,
+          usePrebuiltBinaries,
           skipDownload: !sourceBuildAllowed,
         }));
       const loadCpuCompatibleLlama = async () => {
         try {
-          return await loadLlama(false, false);
+          return await loadLlama(false, allowBuild);
         } catch (err) {
           // Some platforms, notably Apple Silicon, ship a Metal prebuilt but no
           // CPU-only prebuilt. Do a fast no-build lookup for an actual CPU
           // binding first; if it does not exist, use the packaged auto/Metal
           // binding and disable model offloading via gpuLayers: 0.
+          if (buildMode !== "auto" || !usePrebuiltBinaries) {
+            throw err;
+          }
           if (!cpuForcedPrebuiltFallbackWarningShown) {
             cpuForcedPrebuiltFallbackWarningShown = true;
             process.stderr.write(

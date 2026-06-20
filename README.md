@@ -969,6 +969,8 @@ llm_cache       -- Cached LLM responses (query expansion, rerank scores)
 | `XDG_CACHE_HOME` | `~/.cache` | Cache directory location |
 | `QMD_LLAMA_GPU` | `auto` | Force llama.cpp GPU backend (`metal`, `vulkan`, `cuda`) or disable GPU with `false` |
 | `QMD_FORCE_CPU` | unset | Set to `1`/`true` to force CPU mode before any CUDA/Vulkan/Metal probing. Equivalent CLI flag: `--no-gpu`. |
+| `QMD_LLAMA_BUILD` | `auto` | Select node-llama-cpp build mode (`auto`, `never`, `forceRebuild`, `try`, `autoAttempt`). |
+| `QMD_LLAMA_USE_PREBUILT` | `true` | Set to `0`/`false`/`off` to avoid packaged node-llama-cpp binaries and use a local source build instead. Useful with `QMD_FORCE_CPU=1` when a packaged GPU backend is unstable. |
 | `QMD_EMBED_PARALLELISM` | automatic | Override embedding/reranking context parallelism (1-8). Windows CUDA defaults to `1` because parallel CUDA contexts can crash with `ggml-cuda.cu:98`; use Vulkan or raise this only if your driver is stable. |
 
 ## How It Works
